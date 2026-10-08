@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>시작 화면 맵 선택</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #16324a; font-family: "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; color: #1b2430; }
+  body { display: flex; justify-content: center; }
+  .phone { width: min(430px, 100vw); min-height: 100%; padding: 18px 14px 24px; }
+  .phone.small { background: #9fd4f5 url('bg/small.jpg') center/cover no-repeat; }
+  .phone.large { background: #6eb0e6 url('bg/large.jpg') center/cover no-repeat; }
+  .phone.village { background: #3d5cb8 url('bg/village.jpg') center/cover no-repeat; }
+  h1 { margin: 0; font-size: 30px; }
+  .lead { margin: 6px 0 12px; font-size: 18px; }
+  .pick { display: flex; gap: 8px; }
+  button.map {
+    flex: 1; min-height: 88px; border-radius: 16px; border: 3px solid transparent;
+    background: rgba(255,255,255,.9); font: inherit; color: inherit; padding: 8px;
+  }
+  button.map.on { border-color: #c4552a; background: #fff; }
+  button.map b { display: block; font-size: 18px; }
+  button.map span { display: block; margin-top: 4px; font-size: 14px; color: #6a4528; }
+  .preview-box { background: rgba(255,255,255,.82); border-radius: 16px; padding: 10px 10px 12px; margin-top: 12px; }
+  .preview-box h2 { margin: 0 0 4px; font-size: 20px; }
+  #previewNote { margin: 0 0 8px; font-size: 16px; color: #6a4528; }
+  canvas { width: 100%; height: 240px; display: block; background: #d7eefc center/cover no-repeat; border-radius: 12px; }
+  #go, #back {
+    width: 100%; min-height: 56px; border: 0; border-radius: 16px; background: #1b2430; color: #fff;
+    font: inherit; font-size: 22px; font-weight: 800;
+  }
+  #play { display: none; }
+  .top { display: flex; justify-content: space-between; font-size: 20px; font-weight: 800; }
+  #log { font-size: 18px; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <section id="start">
+    <h1>시작 화면</h1>
+    <p class="lead">맵을 고르세요. 시작을 누르기 전에는 들어가지 않습니다.</p>
+    <div class="pick">
+      <button class="map on" data-map="small" type="button"><b>작은 마당</b><span>집 하나</span></button>
+      <button class="map" data-map="large" type="button"><b>큰 마당</b><span>긴 거리</span></button>
+      <button class="map" data-map="village" type="button"><b>마을 섬</b><span>집마다 참가</span></button>
+    </div>
+    <div class="preview-box">
+      <h2 id="previewTitle">미리보기 · 작은 마당</h2>
+      <p id="previewNote">집 하나, 변기 하나. 돌쇠와 갑순이 가깝다.</p>
+      <canvas id="preview" width="398" height="240"></canvas>
+    </div>
+    <button id="go" type="button">선택한 맵으로 시작</button>
+  </section>
+  <section id="play">
+    <div class="top"><span id="title"></span><span>돌쇠</span></div>
+    <canvas id="cv" width="398" height="460"></canvas>
+    <p id="log" class="lead">옆 칸을 눌러 이동</p>
+    <button id="back" type="button">시작 화면으로</button>
+  </section>
+</div>
+<script>
+const label = { small: '떠 있는 작은 마당', large: '떠 있는 큰 마당', village: '하늘에 떠 있는 마을 섬' };
+let picked = 'small';
+const preview = document.getElementById('preview');
+const pctx = preview.getContext('2d');
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let map = 'small', me = {x:1,y:1}, others = [];
+
+const note = {
+  small: '집 하나, 변기 하나. 돌쇠와 갑순이 가깝다.',
+  large: '같은 집이 더 넓다. 화장실까지 뛰는 칸이 길다.',
+  village: '하늘 섬. 네 집에서 참가자가 나온다.'
+};
+function sample(key) {
+  const size = key === 'small' ? 3 : key === 'large' ? 5 : 4;
+  const me = { x: 1, y: 1 };
+  const others = key === 'village'
+    ? [{x:0,y:0,name:'집1'},{x:size-1,y:0,name:'집2'},{x:0,y:size-1,name:'집3'},{x:size-1,y:size-1,name:'집4'}]
+    : [{x:size-2,y:size-2,name:'갑순'}];
+  return { me, others };
+}
+function showPreview() {
+  const s = sample(picked);
+  document.querySelector('.phone').className = 'phone ' + picked;
+  document.getElementById('preview').style.backgroundImage = "url('bg/" + picked + ".jpg')";
+  document.getElementById('cv').style.backgroundImage = "url('bg/" + picked + ".jpg')";
+  document.getElementById('previewTitle').textContent = '미리보기 · ' + ({small:'작은 마당',large:'큰 마당',village:'마을 섬'}[picked]);
+  document.getElementById('previewNote').textContent = note[picked];
+  paint(pctx, preview, picked, s.me, s.others);
+}
+document.querySelectorAll('.map').forEach(btn => btn.onclick = () => {
+  picked = btn.dataset.map;
+  document.querySelectorAll('.map').forEach(b => b.classList.toggle('on', b === btn));
+  showPreview();
+});
+showPreview();
+
+document.getElementById('go').onclick = () => {
+  map = picked;
+  const size = map === 'small' ? 3 : map === 'large' ? 5 : 4;
+  me = {x:1,y:1};
+  others = map === 'village'
+    ? [{x:0,y:0,name:'집1'},{x:size-1,y:0,name:'집2'},{x:0,y:size-1,name:'집3'},{x:size-1,y:size-1,name:'집4'}]
+    : [{x:size-2,y:size-2,name:'갑순'}];
+  document.getElementById('start').style.display = 'none';
+  document.getElementById('play').style.display = 'block';
+  document.getElementById('title').textContent = label[map];
+  document.getElementById('log').textContent = map === 'village' ? '집마다 참가자가 나왔다' : '옆 칸만 이동';
+  paint(ctx, cv, map, me, others);
+};
+document.getElementById('back').onclick = () => {
+  document.getElementById('play').style.display = 'none';
+  document.getElementById('start').style.display = 'block';
+};
+
+function paint(g, canvas, key, actor, crowd) {
+  const size = key === 'small' ? 3 : key === 'large' ? 5 : 4;
+  g.clearRect(0, 0, canvas.width, canvas.height);
+  g.font = '18px sans-serif'; g.fillStyle = '#1b2430'; g.textAlign = 'center';
+  g.fillText(label[key], canvas.width/2, 28);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const p = iso(x, y, size, canvas.width);
+    diamond(g, p.x, p.y, (x+y)%2 ? '#d7f0c8' : '#c5e4b4');
+    if (key === 'village' && (x===0||x===size-1) && (y===0||y===size-1)) {
+      g.fillStyle = '#c4552a'; g.fillRect(p.x-12, p.y-18, 24, 16);
+    }
+  }
+  const drawOne = (a, color, name) => {
+    const p = iso(a.x, a.y, size, canvas.width);
+    g.fillStyle = color; g.beginPath(); g.arc(p.x, p.y, 10, 0, 7); g.fill();
+    g.fillStyle = '#1b2430'; g.font = '16px sans-serif'; g.fillText(name, p.x, p.y-16);
+  };
+  crowd.forEach(o => drawOne(o, '#7a4ea3', o.name));
+  if (actor) drawOne(actor, '#e07a3d', '돌쇠');
+}
+function iso(x, y, size, w) {
+  const ox = (x - (size-1)/2), oy = (y - (size-1)/2);
+  return { x: w/2 + (ox-oy)*28, y: 120 + (ox+oy)*16 };
+}
+function diamond(g, x, y, color) {
+  g.fillStyle = color; g.strokeStyle = '#6d8f62';
+  g.beginPath(); g.moveTo(x, y-14); g.lineTo(x+28, y); g.lineTo(x, y+14); g.lineTo(x-28, y); g.closePath();
+  g.fill(); g.stroke();
+}
+cv.addEventListener('pointerdown', e => {
+  const size = map === 'small' ? 3 : map === 'large' ? 5 : 4;
+  const rect = cv.getBoundingClientRect();
+  const x = (e.clientX-rect.left) * (cv.width/rect.width);
+  const y = (e.clientY-rect.top) * (cv.height/rect.height);
+  let best = null, bd = 26;
+  for (let gy=0; gy<size; gy++) for (let gx=0; gx<size; gx++) {
+    const p = iso(gx, gy, size, cv.width);
+    const d = Math.hypot(p.x-x, p.y-y);
+    if (d<bd) { bd=d; best={x:gx,y:gy}; }
+  }
+  if (!best) return;
+  if (Math.abs(best.x-me.x)+Math.abs(best.y-me.y)!==1) {
+    document.getElementById('log').textContent = '옆 칸만 이동';
+    return;
+  }
+  me = best;
+  paint(ctx, cv, map, me, others);
+  document.getElementById('log').textContent = '돌쇠 '+(me.x+1)+','+(me.y+1)+' 칸';
+});
+</script>
+</body>
+</html>
